@@ -1,0 +1,55 @@
+# Flutter/Dart specific
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+.pub/
+build/
+*.lock
+*.log
+
+# IDE specific
+.idea/
+.vscode/
+*.iml
+
+# iOS specific
+ios/Pods/
+ios/.symlinks/
+ios/Flutter/Flutter.framework
+ios/Flutter/Flutter.podspec
+ios/Flutter/Generated.xcconfig
+
+# macOS specific
+.DS_Store
+
+# Android specific
+**/android/**/gradle-wrapper.jar
+**/android/.gradle
+**/android/captures/
+**/android/gradlew
+**/android/gradlew.bat
+**/android/local.properties
+**/android/**/GeneratedPluginRegistrant.java
+
+# Fichiers générés supplémentaires
+/android/app/debug
+/android/app/profile
+/android/app/release
+.fvm/
+
+# Coverage
+coverage/
+*.lcov
+
+# Fichiers de configuration environnement  
+.env*
+*.env
+google-services.json
+GoogleService-Info.plist
+
+# Fichiers de test générés
+.test_coverage.dart
+*.freezed.dart
+*.g.dart
