@@ -1,75 +1,61 @@
 # Fayma Kash
 
-Application mobile développée avec Flutter pour la gestion des paiements dans les multiservices de l'Université Assane Seck de Ziguinchor (UASZ).
+Mobile application developed with Flutter for managing payments in the multiservice centers of Assane Seck University of Ziguinchor (UASZ).
 
-## À propos
+## About
 
-Ce projet s'inscrit dans le cadre d'un mémoire universitaire visant à améliorer l'expérience des étudiants de l'UASZ lors de leurs transactions dans les multiservices. La solution propose une alternative moderne aux problèmes de files d'attente et de disponibilité des opérateurs de paiement.
+This project is part of a university thesis aimed at improving the student experience at UASZ during their transactions in multiservice centers. The solution provides a modern alternative to issues such as long queues and the limited availability of payment operators.
 
-## Caractéristiques Techniques
+## Technical Features
 
-- Architecture Flutter avec gestion d'état
-- Système d'authentification personnalisé
-- Interface utilisateur native performante
-- API REST pour la communication backend
+- Flutter architecture with state management  
+- Custom authentication system  
+- High-performance native user interface  
+- REST API for backend communication  
 
-## Fonctionnalités
+## Features
 
-- Authentification utilisateur sécurisée avec code PIN
-- Interopérabilité des transactions
-- Dépôts et retraits via carte NFC/ Téléphone
-- Historique des transactions
+- Secure user authentication with PIN code  
+- Transaction interoperability  
+- Deposits and withdrawals via NFC card / Mobile phone  
+- Transaction history  
 
-## Démarrage
+## Getting Started
 
-### Prérequis
+### Prerequisites
 
-- Flutter SDK (version stable)
-- Dart SDK
-- Android Studio / VS Code
+- Flutter SDK (stable version)  
+- Dart SDK  
+- Android Studio / VS Code  
 - Git
+
 
 ### Installation
 
-1. Cloner le dépôt :
+1. Clone the repository:
 ```bash
 git clone https://github.com/iamwill221/fayma_kash.git
 ```
 
-2. Accéder au répertoire du projet :
+2. Navigate to the project directory:
 ```bash
 cd fayma_kash
 ```
 
-3. Installer les dépendances :
+3. Install dependencies:
 ```bash
 flutter pub get
 ```
 
-4. Lancer l'application :
+4. Run the application:
 ```bash
 flutter run
 ```
 
-## Développement
+## Technical Documentation
 
-Ce projet utilise:
-- Flutter pour le développement frontend
-- BLoC pattern pour la gestion d'état
-- CustomAuth pour l'authentification
-- Architecture MVC
-- Services REST pour la communication avec le backend
-- Material Design pour l'interface utilisateur
-
-## Documentation Technique
-
-Pour plus de détails sur l'implémentation technique et l'architecture frontend du système, consultez le mémoire associé à ce projet.
-
-## Contact
-
-Chef de Projet - [@iamwill221](https://github.com/iamwill221)
-Lien du Frontend: [https://github.com/iamwill221/FaymaKash-Frontend](https://github.com/iamwill221/FaymaKash-Frontend)
+For more details on the technical implementation and frontend architecture of the system, please refer to the thesis associated with this project.
 
 ## Notes
 
-Ce dépôt contient uniquement la partie frontend de l'application Fayma Kash. Pour le backend, veuillez consulter le dépôt correspondant.
+This repository contains only the frontend part of the Fayma Kash application. For the backend, please refer to the corresponding repository.
