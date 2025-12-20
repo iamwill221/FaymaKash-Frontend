@@ -13,7 +13,7 @@ const _kPrivateApiFunctionName = 'ffPrivateApiCall';
 
 class AuthGroup {
   static String getBaseUrl() =>
-      'https://fayma-kash-uuike.ondigitalocean.app/api/';
+      'https://faymakash.daarasmart.com/api/';
   static Map<String, String> headers = {};
   static SendOTPCall sendOTPCall = SendOTPCall();
   static VerifyOTPCall verifyOTPCall = VerifyOTPCall();
@@ -228,7 +228,7 @@ class TransactionsGroup {
   static String getBaseUrl({
     String? authToken = '',
   }) =>
-      'https://fayma-kash-uuike.ondigitalocean.app/api/';
+      'https://faymakash.daarasmart.com/api/';
   static Map<String, String> headers = {
     'Authorization': 'Bearer [auth_token]',
   };
@@ -473,7 +473,7 @@ class WithdrawByMobileMoneyCall {
 
 class NfcCardGroup {
   static String getBaseUrl() =>
-      'https://fayma-kash-uuike.ondigitalocean.app/api/';
+      'https://faymakash.daarasmart.com/api/';
   static Map<String, String> headers = {};
   static ChangeNFCCardStateCall changeNFCCardStateCall =
       ChangeNFCCardStateCall();

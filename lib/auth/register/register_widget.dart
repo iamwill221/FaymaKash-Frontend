@@ -1643,7 +1643,7 @@ class _RegisterWidgetState extends State<RegisterWidget>
                                     context: context,
                                     builder: (alertDialogContext) {
                                       return AlertDialog(
-                                        title: Text('Eureur!'),
+                                        title: Text('Erreur!'),
                                         content: Text(
                                             'Erreur d\'envoi du code OTP veuillez vérifier votre connexion internet'),
                                         actions: [
