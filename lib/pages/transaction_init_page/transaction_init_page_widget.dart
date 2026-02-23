@@ -7,6 +7,7 @@ import '/flutter_flow/flutter_flow_util.dart';
 import '/flutter_flow/flutter_flow_widgets.dart';
 import '/pages/components/nfc_reader_popup/nfc_reader_popup_widget.dart';
 import '/backend/schema/structs/index.dart';
+import '/custom_code/actions/index.dart' as actions;
 import '/index.dart';
 import 'package:flutter/material.dart';
 import 'transaction_init_page_model.dart';
@@ -316,7 +317,32 @@ class _TransactionInitPageWidgetState extends State<TransactionInitPageWidget> {
                     builder: (context) => FFButtonWidget(
                       onPressed: () async {
                         if (widget.transactionType ==
-                            TransactionType.deposit) {
+                                TransactionType.deposit ||
+                            widget.transactionType ==
+                                TransactionType.withdraw ||
+                            widget.transactionType ==
+                                TransactionType.payment) {
+                          final isNfcReady = await actions.checkNfc();
+                          if (!isNfcReady) {
+                            await showDialog(
+                              context: context,
+                              builder: (alertDialogContext) {
+                                return AlertDialog(
+                                  title: Text('Erreur !'),
+                                  content: Text(
+                                      'Activez le module NFC ! Votre téléphone n\'est peut-être pas compatible.'),
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () =>
+                                          Navigator.pop(alertDialogContext),
+                                      child: Text('Ok'),
+                                    ),
+                                  ],
+                                );
+                              },
+                            );
+                            return;
+                          }
                           await showDialog(
                             context: context,
                             builder: (dialogContext) {
@@ -336,34 +362,7 @@ class _TransactionInitPageWidgetState extends State<TransactionInitPageWidget> {
                                     nfcState: NFCState.Read,
                                     amount: int.tryParse(_model
                                         .amountTextFieldTextController.text),
-                                    transactionType: TransactionType.deposit,
-                                  ),
-                                ),
-                              );
-                            },
-                          );
-                        } else if (widget.transactionType ==
-                            TransactionType.withdraw) {
-                          await showDialog(
-                            context: context,
-                            builder: (dialogContext) {
-                              return Dialog(
-                                elevation: 0,
-                                insetPadding: EdgeInsets.zero,
-                                backgroundColor: Colors.transparent,
-                                alignment: AlignmentDirectional(0.0, 0.0)
-                                    .resolve(Directionality.of(context)),
-                                child: GestureDetector(
-                                  onTap: () {
-                                    FocusScope.of(dialogContext).unfocus();
-                                    FocusManager.instance.primaryFocus
-                                        ?.unfocus();
-                                  },
-                                  child: NfcReaderPopupWidget(
-                                    nfcState: NFCState.Read,
-                                    amount: int.tryParse(_model
-                                        .amountTextFieldTextController.text),
-                                    transactionType: TransactionType.withdraw,
+                                    transactionType: widget.transactionType,
                                   ),
                                 ),
                               );
@@ -414,33 +413,6 @@ class _TransactionInitPageWidgetState extends State<TransactionInitPageWidget> {
                               },
                             );
                           }
-                        } else if (widget.transactionType ==
-                            TransactionType.payment) {
-                          await showDialog(
-                            context: context,
-                            builder: (dialogContext) {
-                              return Dialog(
-                                elevation: 0,
-                                insetPadding: EdgeInsets.zero,
-                                backgroundColor: Colors.transparent,
-                                alignment: AlignmentDirectional(0.0, 0.0)
-                                    .resolve(Directionality.of(context)),
-                                child: GestureDetector(
-                                  onTap: () {
-                                    FocusScope.of(dialogContext).unfocus();
-                                    FocusManager.instance.primaryFocus
-                                        ?.unfocus();
-                                  },
-                                  child: NfcReaderPopupWidget(
-                                    nfcState: NFCState.Read,
-                                    amount: int.tryParse(_model
-                                        .amountTextFieldTextController.text),
-                                    transactionType: TransactionType.payment,
-                                  ),
-                                ),
-                              );
-                            },
-                          );
                         } else if (widget.transactionType ==
                             TransactionType.deposit_momo) {
                           _model.depositMomoResult = await TransactionsGroup

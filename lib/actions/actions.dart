@@ -107,7 +107,7 @@ Future executeManagerTransaction(
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            'Retrait effectué avec succès',
+            'Paiement effectué avec succès',
             style: TextStyle(),
           ),
           duration: Duration(milliseconds: 4000),

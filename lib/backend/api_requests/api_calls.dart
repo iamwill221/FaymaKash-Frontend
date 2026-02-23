@@ -148,7 +148,6 @@ class GetCurrentUserCall {
       callType: ApiCallType.GET,
       headers: {
         'Authorization': 'Bearer ${authToken}',
-        'ngrok-skip-browser-warning': 'Youpi',
       },
       params: {},
       returnBody: true,

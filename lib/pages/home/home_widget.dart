@@ -11,6 +11,7 @@ import '/pages/components/n_f_c_card/n_f_c_card_widget.dart';
 import '/pages/components/nfc_reader_popup/nfc_reader_popup_widget.dart';
 import '/pages/components/transaction_item/transaction_item_widget.dart';
 import '/pages/components/transaction_type_button/transaction_type_button_widget.dart';
+import '/custom_code/actions/index.dart' as actions;
 import '/index.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
@@ -284,6 +285,28 @@ class _HomeWidgetState extends State<HomeWidget> with TickerProviderStateMixin {
                                     AuthGroup.getCurrentUserCall.isCardActive(
                                       headColumnGetCurrentUserResponse.jsonBody,
                                     )!) {
+                                  final isHceReady =
+                                      await actions.checkNfcHceSupported();
+                                  if (!isHceReady) {
+                                    await showDialog(
+                                      context: context,
+                                      builder: (alertDialogContext) {
+                                        return AlertDialog(
+                                          title: Text('Erreur !'),
+                                          content: Text(
+                                              'Activez le NFC ou votre téléphone n\'est pas compatible avec le paiement par carte virtuelle (HCE).'),
+                                          actions: [
+                                            TextButton(
+                                              onPressed: () => Navigator.pop(
+                                                  alertDialogContext),
+                                              child: Text('Ok'),
+                                            ),
+                                          ],
+                                        );
+                                      },
+                                    );
+                                    return;
+                                  }
                                   if (animationsMap[
                                           'nFCCardOnActionTriggerAnimation'] !=
                                       null) {

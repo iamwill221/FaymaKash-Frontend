@@ -11,46 +11,20 @@ import 'package:flutter/material.dart';
 
 import 'package:flutter_nfc_hce/flutter_nfc_hce.dart';
 
+Future<bool> checkNfcHceSupported() async {
+  try {
+    final plugin = FlutterNfcHce();
+    final isSupported = await plugin.isNfcHceSupported();
+    if (isSupported != true) return false;
+    final isEnabled = await plugin.isNfcEnabled();
+    return isEnabled == true;
+  } catch (e) {
+    return false;
+  }
+}
+
 Future startNfcEmulation(BuildContext context, String virtualCardToken) async {
-  // Plugin instance
-  final _flutterNfcHcePlugin = FlutterNfcHce();
-
-  // Get platform version
-  var platformVersion = await _flutterNfcHcePlugin.getPlatformVersion();
-  print('Platform Version: $platformVersion');
-
-  // Check if NFC HCE is supported
-  bool? isNfcHceSupported = await _flutterNfcHcePlugin.isNfcHceSupported();
-  showDialog(
-    context: context,
-    builder: (BuildContext context) {
-      return AlertDialog(
-        title: Text('NFC HCE Support'),
-        content: Text(isNfcHceSupported == true
-            ? 'NFC HCE is supported.'
-            : 'NFC HCE is not supported.'),
-        actions: <Widget>[
-          TextButton(
-            child: Text('OK'),
-            onPressed: () {
-              Navigator.of(context).pop();
-            },
-          ),
-        ],
-      );
-    },
-  );
-
-  // Check if secure NFC is enabled
-  bool? isSecureNfcEnabled = await _flutterNfcHcePlugin.isSecureNfcEnabled();
-
-  // Check if NFC is enabled
-  bool? isNfcEnabled = await _flutterNfcHcePlugin.isNfcEnabled();
-
-  // NFC content
-  var content = virtualCardToken;
-
-  // Start NFC HCE
-  var result = await _flutterNfcHcePlugin.startNfcHce(content);
+  final plugin = FlutterNfcHce();
+  var result = await plugin.startNfcHce(virtualCardToken);
   print('NFC HCE Result: $result');
 }
