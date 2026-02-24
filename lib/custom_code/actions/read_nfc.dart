@@ -152,95 +152,21 @@ Future<String> _tryIsoDepRead(NfcTag tag) async {
     print('NFC Reader: SELECT App response: $selectAppResp');
 
     if (!_isSuccess(selectAppResp)) {
-      print('NFC Reader: SELECT NDEF App failed');
+      print('NFC Reader: SELECT App failed');
       return '';
     }
 
-    // Step 2: SELECT Capability Container (CC) file
-    final selectCC = Uint8List.fromList([
-      0x00, 0xA4, 0x00, 0x0C, 0x02, 0xE1, 0x03
-    ]);
-    final selectCCResp = await isoDep.transceive(data: selectCC);
-    print('NFC Reader: SELECT CC response: $selectCCResp');
-
-    if (_isSuccess(selectCCResp)) {
-      // Step 3: READ Capability Container
-      final readCC = Uint8List.fromList([
-        0x00, 0xB0, 0x00, 0x00, 0x0F
-      ]);
-      final ccData = await isoDep.transceive(data: readCC);
-      print('NFC Reader: CC data: $ccData');
+    // The HCE app responds directly with data in the SELECT App response.
+    // Response format: [data bytes...] + [SW1=0x90] [SW2=0x00]
+    if (selectAppResp.length > 2) {
+      final dataBytes = selectAppResp.sublist(0, selectAppResp.length - 2);
+      final content = utf8.decode(dataBytes);
+      print('NFC Reader: HCE token data (${dataBytes.length} bytes): $content');
+      return content;
     }
 
-    // Step 4: SELECT NDEF file
-    final selectNdef = Uint8List.fromList([
-      0x00, 0xA4, 0x00, 0x0C, 0x02, 0xE1, 0x04
-    ]);
-    final selectNdefResp = await isoDep.transceive(data: selectNdef);
-    print('NFC Reader: SELECT NDEF file response: $selectNdefResp');
-
-    if (!_isSuccess(selectNdefResp)) {
-      print('NFC Reader: SELECT NDEF file failed');
-      return '';
-    }
-
-    // Step 5: READ NDEF file length (first 2 bytes)
-    final readLen = Uint8List.fromList([
-      0x00, 0xB0, 0x00, 0x00, 0x02
-    ]);
-    final lenData = await isoDep.transceive(data: readLen);
-    print('NFC Reader: NDEF length data: $lenData');
-
-    if (lenData.length < 4 || !_isSuccess(lenData)) {
-      print('NFC Reader: Could not read NDEF length');
-      return '';
-    }
-
-    final ndefLen = (lenData[0] << 8) | lenData[1];
-    print('NFC Reader: NDEF message length: $ndefLen bytes');
-
-    if (ndefLen == 0 || ndefLen > 1024) {
-      print('NFC Reader: Invalid NDEF length: $ndefLen');
-      return '';
-    }
-
-    // Step 6: READ NDEF data in chunks (MLe = 59 bytes max per read)
-    const int chunkSize = 59;
-    final allBytes = <int>[];
-    int offset = 2; // Skip the 2-byte NLEN that we already read
-
-    while (allBytes.length < ndefLen) {
-      final remaining = ndefLen - allBytes.length;
-      final toRead = remaining > chunkSize ? chunkSize : remaining;
-      final offsetHigh = (offset >> 8) & 0xFF;
-      final offsetLow = offset & 0xFF;
-
-      final readData = Uint8List.fromList([
-        0x00, 0xB0, offsetHigh, offsetLow, toRead & 0xFF
-      ]);
-      final chunk = await isoDep.transceive(data: readData);
-
-      if (!_isSuccess(chunk) || chunk.length < 3) {
-        print('NFC Reader: READ BINARY chunk failed at offset $offset');
-        break;
-      }
-
-      // Response = data bytes + SW1 SW2
-      final dataBytes = chunk.sublist(0, chunk.length - 2);
-      allBytes.addAll(dataBytes);
-      offset += dataBytes.length;
-      print('NFC Reader: Read ${dataBytes.length} bytes at offset ${offset - dataBytes.length}, total: ${allBytes.length}/$ndefLen');
-    }
-
-    if (allBytes.isEmpty) {
-      print('NFC Reader: Could not read NDEF data');
-      return '';
-    }
-
-    // Parse NDEF message bytes
-    final ndefBytes = Uint8List.fromList(allBytes);
-    print('NFC Reader: Full NDEF data (${ndefBytes.length} bytes): $ndefBytes');
-    return _parseNdefBytes(ndefBytes);
+    print('NFC Reader: SELECT App succeeded but no data in response');
+    return '';
   } catch (e) {
     print('NFC Reader: IsoDep APDU error: $e');
     return '';

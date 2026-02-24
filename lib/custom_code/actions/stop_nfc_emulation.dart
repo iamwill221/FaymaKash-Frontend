@@ -9,9 +9,8 @@ import 'package:flutter/material.dart';
 // Begin custom action code
 // DO NOT REMOVE OR MODIFY THE CODE ABOVE!
 
-import 'package:flutter_nfc_hce/flutter_nfc_hce.dart';
+import 'package:nfc_host_card_emulation/nfc_host_card_emulation.dart';
 
 Future stopNfcEmulation() async {
-  final _flutterNfcHcePlugin = FlutterNfcHce();
-  await _flutterNfcHcePlugin.stopNfcHce();
+  await NfcHce.removeApduResponse(0);
 }
