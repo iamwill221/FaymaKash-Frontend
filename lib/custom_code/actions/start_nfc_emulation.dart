@@ -24,7 +24,10 @@ Future<bool> checkNfcHceSupported() async {
 }
 
 Future startNfcEmulation(BuildContext context, String virtualCardToken) async {
+  print('NFC HCE: Starting emulation with token length: ${virtualCardToken.length}');
+  print('NFC HCE: Token preview: ${virtualCardToken.substring(0, virtualCardToken.length > 20 ? 20 : virtualCardToken.length)}...');
   final plugin = FlutterNfcHce();
   var result = await plugin.startNfcHce(virtualCardToken);
   print('NFC HCE Result: $result');
+  print('NFC HCE: Emulation should now be active');
 }

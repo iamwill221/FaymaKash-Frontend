@@ -43,68 +43,93 @@ class _NfcReaderPopupWidgetState extends State<NfcReaderPopupWidget> {
     _model = createModel(context, () => NfcReaderPopupModel());
 
     // On component load action.
-    // NFC checks are done BEFORE opening this popup.
     SchedulerBinding.instance.addPostFrameCallback((_) async {
-      await Future.wait([
-        Future(() async {
-          if (widget.nfcState == NFCState.Read) {
-            _model.readNfcResult = await actions.readNfc(context);
-            await action_blocks.executeManagerTransaction(
-              context,
-              transactionType: widget.transactionType,
-              amount: widget.amount,
-              nfcCardIdentifier: _model.readNfcResult,
-            );
-          } else {
-            _model.updateVirtualCardResult =
-                await NfcCardGroup.updateVirtualCardIdentifierCall.call(
-              authToken: currentAuthenticationToken,
-            );
-
-            if ((_model.updateVirtualCardResult?.succeeded ?? false)) {
-              await actions.startNfcEmulation(
+      _model.nfcCheckResult = await actions.checkNfc();
+      if (_model.nfcCheckResult!) {
+        await Future.wait([
+          Future(() async {
+            if (widget.nfcState == NFCState.Read) {
+              _model.readNfcResult = await actions.readNfc(
                 context,
-                NfcCardGroup.updateVirtualCardIdentifierCall
-                    .virtualCardIdentifier(
-                  (_model.updateVirtualCardResult?.jsonBody ?? ''),
-                )!,
+              );
+              await action_blocks.executeManagerTransaction(
+                context,
+                transactionType: widget.transactionType,
+                amount: widget.amount,
+                nfcCardIdentifier: _model.readNfcResult,
               );
             } else {
-              await showDialog(
-                context: context,
-                builder: (alertDialogContext) {
-                  return AlertDialog(
-                    title: Text('Erreur !'),
-                    content: Text(
-                        'La carte n\'est sûrement pas valide. Veuillez réessayer !'),
-                    actions: [
-                      TextButton(
-                        onPressed: () => Navigator.pop(alertDialogContext),
-                        child: Text('Ok'),
-                      ),
-                    ],
-                  );
-                },
+              _model.updateVirtualCardResult =
+                  await NfcCardGroup.updateVirtualCardIdentifierCall.call(
+                authToken: currentAuthenticationToken,
               );
-              Navigator.pop(context);
-            }
-          }
-        }),
-        Future(() async {
-          _model.instantTimer = InstantTimer.periodic(
-            duration: Duration(milliseconds: 1000),
-            callback: (timer) async {
-              _model.timer = _model.timer + -1;
-              safeSetState(() {});
-              if (_model.timer <= 0) {
-                _model.instantTimer?.cancel();
-                Navigator.pop(context);
+
+              if ((_model.updateVirtualCardResult?.succeeded ?? true)) {
+                await actions.startNfcEmulation(
+                  context,
+                  NfcCardGroup.updateVirtualCardIdentifierCall
+                      .virtualCardIdentifier(
+                    (_model.updateVirtualCardResult?.jsonBody ?? ''),
+                  )!,
+                );
+              } else {
+                await showDialog(
+                  context: context,
+                  builder: (alertDialogContext) {
+                    return AlertDialog(
+                      title: Text('Erreur!'),
+                      content: Text(
+                          'La carte n\'est sûrement pas valide. Veuillez réessayer !'),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(alertDialogContext),
+                          child: Text('Ok'),
+                        ),
+                      ],
+                    );
+                  },
+                );
               }
-            },
-            startImmediately: true,
-          );
-        }),
-      ]);
+            }
+          }),
+          Future(() async {
+            _model.instantTimer = InstantTimer.periodic(
+              duration: Duration(milliseconds: 1000),
+              callback: (timer) async {
+                _model.timer = _model.timer + -1;
+                safeSetState(() {});
+                if (_model.timer <= 0) {
+                  _model.instantTimer?.cancel();
+                  if (mounted) {
+                    Navigator.pop(context);
+                  }
+                }
+              },
+              startImmediately: true,
+            );
+          }),
+        ]);
+      } else {
+        await showDialog(
+          context: context,
+          builder: (alertDialogContext) {
+            return AlertDialog(
+              title: Text('Erreur !'),
+              content: Text(
+                  'Activez le module NFC! Votre téléphone n\'est peut être pas compatible.'),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(alertDialogContext),
+                  child: Text('Ok'),
+                ),
+              ],
+            );
+          },
+        );
+        if (mounted) {
+          Navigator.pop(context);
+        }
+      }
     });
   }
 
@@ -259,7 +284,7 @@ class _NfcReaderPopupWidgetState extends State<NfcReaderPopupWidget> {
                         onPressed: () async {
                           Navigator.pop(context);
                         },
-                        text: 'Fermer',
+                        text: 'Annuler',
                         options: FFButtonOptions(
                           width: 120.0,
                           height: 40.0,

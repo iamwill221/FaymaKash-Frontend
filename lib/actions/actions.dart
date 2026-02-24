@@ -24,6 +24,7 @@ Future executeManagerTransaction(
     );
 
     if ((depositResult.succeeded ?? true)) {
+      Navigator.pop(context);
       context.pushNamed(HomeWidget.routeName);
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -64,6 +65,7 @@ Future executeManagerTransaction(
     );
 
     if ((withdrawResult.succeeded ?? true)) {
+      Navigator.pop(context);
       context.pushNamed(HomeWidget.routeName);
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -102,6 +104,7 @@ Future executeManagerTransaction(
     );
 
     if ((paymentResult.succeeded ?? true)) {
+      Navigator.pop(context);
       context.pushNamed(HomeWidget.routeName);
 
       ScaffoldMessenger.of(context).showSnackBar(
