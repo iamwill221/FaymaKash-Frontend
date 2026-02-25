@@ -72,6 +72,11 @@ class _NfcReaderPopupWidgetState extends State<NfcReaderPopupWidget> {
                     (_model.updateVirtualCardResult?.jsonBody ?? ''),
                   )!,
                 );
+                // Card was read by PDA — close the popup
+                if (mounted) {
+                  _model.instantTimer?.cancel();
+                  Navigator.pop(context);
+                }
               } else {
                 await showDialog(
                   context: context,

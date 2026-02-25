@@ -9,6 +9,10 @@ class TransactionInitPageModel
     extends FlutterFlowModel<TransactionInitPageWidget> {
   ///  State fields for stateful widgets in this page.
 
+  // State field for amount validation
+  bool isAmountValid = false;
+  bool hasStartedTyping = false;
+
   // State field(s) for phonenumberTextField widget.
   FocusNode? phonenumberTextFieldFocusNode;
   TextEditingController? phonenumberTextFieldTextController;

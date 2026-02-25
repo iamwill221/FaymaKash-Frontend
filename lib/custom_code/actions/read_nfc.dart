@@ -12,6 +12,7 @@ import 'package:flutter/material.dart';
 import 'dart:async';
 import 'dart:convert'; // For utf8.decode
 import 'dart:typed_data';
+import 'package:flutter/foundation.dart';
 import 'package:nfc_manager/nfc_manager.dart';
 import 'package:nfc_manager/platform_tags.dart';
 
@@ -136,10 +137,14 @@ Future<String> _tryIsoDepRead(NfcTag tag) async {
   try {
     final isoDep = IsoDep.from(tag);
     if (isoDep == null) {
-      print('NFC Reader: IsoDep technology not available');
+      if (kDebugMode) {
+        print('NFC Reader: IsoDep technology not available');
+      }
       return '';
     }
-    print('NFC Reader: IsoDep found, trying APDU commands for HCE...');
+    if (kDebugMode) {
+      print('NFC Reader: IsoDep found, trying APDU commands for HCE...');
+    }
 
     // Step 1: SELECT FaymaKash HCE Application (Custom AID: F04641594D414B = "F0FAYMAK")
     // Using proprietary AID prefix F0 to avoid conflicts with standard NDEF AID D2760000850101
@@ -149,10 +154,14 @@ Future<String> _tryIsoDepRead(NfcTag tag) async {
       0xF0, 0x46, 0x41, 0x59, 0x4D, 0x41, 0x4B, 0x00
     ]);
     final selectAppResp = await isoDep.transceive(data: selectApp);
-    print('NFC Reader: SELECT App response: $selectAppResp');
+    if (kDebugMode) {
+      print('NFC Reader: SELECT App response: $selectAppResp');
+    }
 
     if (!_isSuccess(selectAppResp)) {
-      print('NFC Reader: SELECT App failed');
+      if (kDebugMode) {
+        print('NFC Reader: SELECT App failed');
+      }
       return '';
     }
 
@@ -161,14 +170,21 @@ Future<String> _tryIsoDepRead(NfcTag tag) async {
     if (selectAppResp.length > 2) {
       final dataBytes = selectAppResp.sublist(0, selectAppResp.length - 2);
       final content = utf8.decode(dataBytes);
-      print('NFC Reader: HCE token data (${dataBytes.length} bytes): $content');
+      if (kDebugMode) {
+        print(
+            'NFC Reader: HCE token data (${dataBytes.length} bytes): $content');
+      }
       return content;
     }
 
-    print('NFC Reader: SELECT App succeeded but no data in response');
+    if (kDebugMode) {
+      print('NFC Reader: SELECT App succeeded but no data in response');
+    }
     return '';
   } catch (e) {
-    print('NFC Reader: IsoDep APDU error: $e');
+    if (kDebugMode) {
+      print('NFC Reader: IsoDep APDU error: $e');
+    }
     return '';
   }
 }

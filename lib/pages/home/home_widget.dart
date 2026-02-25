@@ -340,6 +340,11 @@ class _HomeWidgetState extends State<HomeWidget> with TickerProviderStateMixin {
                                       );
                                     },
                                   );
+                                  // Refresh transaction history & user data after HCE scan
+                                  safeSetState(() {
+                                    _model.apiRequestCompleter1 = null;
+                                    _model.apiRequestCompleter2 = null;
+                                  });
                                 }
                               },
                               child: wrapWithModel(

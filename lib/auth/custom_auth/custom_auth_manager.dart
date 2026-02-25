@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '/backend/schema/structs/index.dart';
 import 'custom_auth_user_provider.dart';
@@ -34,7 +34,7 @@ class CustomAuthManager {
     faymaKashAuthUserSubject.add(
       FaymaKashAuthUser(loggedIn: false),
     );
-    persistAuthData();
+    await persistAuthData();
   }
 
   Future<FaymaKashAuthUser?> signIn({
@@ -44,7 +44,7 @@ class CustomAuthManager {
     String? authUid,
     UserStruct? userData,
   }) async =>
-      _updateCurrentUser(
+      await _updateCurrentUser(
         authenticationToken: authenticationToken,
         refreshToken: refreshToken,
         tokenExpiration: tokenExpiration,
@@ -73,13 +73,13 @@ class CustomAuthManager {
     );
   }
 
-  FaymaKashAuthUser? _updateCurrentUser({
+  Future<FaymaKashAuthUser?> _updateCurrentUser({
     String? authenticationToken,
     String? refreshToken,
     DateTime? tokenExpiration,
     String? authUid,
     UserStruct? userData,
-  }) {
+  }) async {
     this.authenticationToken = authenticationToken;
     this.refreshToken = refreshToken;
     this.tokenExpiration = tokenExpiration;
@@ -92,26 +92,31 @@ class CustomAuthManager {
       userData: userData,
     );
     faymaKashAuthUserSubject.add(updatedUser);
-    persistAuthData();
+    await persistAuthData();
     return updatedUser;
   }
 
-  late SharedPreferences _prefs;
-  Future initialize() async {
-    _prefs = await SharedPreferences.getInstance();
+  final FlutterSecureStorage _secureStorage = const FlutterSecureStorage(
+    aOptions: AndroidOptions(encryptedSharedPreferences: true),
+    iOptions: IOSOptions(
+      accessibility: KeychainAccessibility.first_unlock_this_device,
+    ),
+  );
 
+  Future initialize() async {
     try {
-      authenticationToken = _prefs.getString(_kAuthTokenKey);
-      refreshToken = _prefs.getString(_kRefreshTokenKey);
-      tokenExpiration = _prefs.getInt(_kTokenExpirationKey) != null
-          ? DateTime.fromMillisecondsSinceEpoch(
-              _prefs.getInt(_kTokenExpirationKey)!)
+      authenticationToken = await _secureStorage.read(key: _kAuthTokenKey);
+      refreshToken = await _secureStorage.read(key: _kRefreshTokenKey);
+      final expirationStr =
+          await _secureStorage.read(key: _kTokenExpirationKey);
+      tokenExpiration = expirationStr != null
+          ? DateTime.fromMillisecondsSinceEpoch(int.parse(expirationStr))
           : null;
-      uid = _prefs.getString(_kUidKey);
-      userData = _prefs.getString(_kUserDataKey) != null
+      uid = await _secureStorage.read(key: _kUidKey);
+      final userDataStr = await _secureStorage.read(key: _kUserDataKey);
+      userData = userDataStr != null
           ? UserStruct.fromSerializableMap(
-              (jsonDecode(_prefs.getString(_kUserDataKey)!) as Map)
-                  .cast<String, dynamic>(),
+              (jsonDecode(userDataStr) as Map).cast<String, dynamic>(),
             )
           : null;
     } catch (e) {
@@ -132,22 +137,39 @@ class CustomAuthManager {
     faymaKashAuthUserSubject.add(updatedUser);
   }
 
-  void persistAuthData() {
-    authenticationToken != null
-        ? _prefs.setString(_kAuthTokenKey, authenticationToken!)
-        : _prefs.remove(_kAuthTokenKey);
-    refreshToken != null
-        ? _prefs.setString(_kRefreshTokenKey, refreshToken!)
-        : _prefs.remove(_kRefreshTokenKey);
-    tokenExpiration != null
-        ? _prefs.setInt(
-            _kTokenExpirationKey, tokenExpiration!.millisecondsSinceEpoch)
-        : _prefs.remove(_kTokenExpirationKey);
-    uid != null ? _prefs.setString(_kUidKey, uid!) : _prefs.remove(_kUidKey);
-    userData != null
-        ? _prefs.setString(
-            _kUserDataKey, jsonEncode(userData!.toSerializableMap()))
-        : _prefs.remove(_kUserDataKey);
+  Future<void> persistAuthData() async {
+    if (authenticationToken != null) {
+      await _secureStorage.write(
+          key: _kAuthTokenKey, value: authenticationToken!);
+    } else {
+      await _secureStorage.delete(key: _kAuthTokenKey);
+    }
+    if (refreshToken != null) {
+      await _secureStorage.write(key: _kRefreshTokenKey, value: refreshToken!);
+    } else {
+      await _secureStorage.delete(key: _kRefreshTokenKey);
+    }
+    if (tokenExpiration != null) {
+      await _secureStorage.write(
+        key: _kTokenExpirationKey,
+        value: tokenExpiration!.millisecondsSinceEpoch.toString(),
+      );
+    } else {
+      await _secureStorage.delete(key: _kTokenExpirationKey);
+    }
+    if (uid != null) {
+      await _secureStorage.write(key: _kUidKey, value: uid!);
+    } else {
+      await _secureStorage.delete(key: _kUidKey);
+    }
+    if (userData != null) {
+      await _secureStorage.write(
+        key: _kUserDataKey,
+        value: jsonEncode(userData!.toSerializableMap()),
+      );
+    } else {
+      await _secureStorage.delete(key: _kUserDataKey);
+    }
   }
 }
 

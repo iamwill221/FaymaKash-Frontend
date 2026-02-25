@@ -47,6 +47,21 @@ class _TransactionInitPageWidgetState extends State<TransactionInitPageWidget> {
     _model.amountTextFieldTextController ??= TextEditingController();
     _model.amountTextFieldFocusNode ??= FocusNode();
 
+    // Add listener to validate amount
+    _model.amountTextFieldTextController?.addListener(() {
+      final text = _model.amountTextFieldTextController?.text ?? '';
+      final amount = int.tryParse(text) ?? 0;
+      final newIsValid = amount >= 100;
+      final hasTyped = text.isNotEmpty;
+      
+      if (_model.isAmountValid != newIsValid || _model.hasStartedTyping != hasTyped) {
+        safeSetState(() {
+          _model.isAmountValid = newIsValid;
+          _model.hasStartedTyping = hasTyped;
+        });
+      }
+    });
+
     WidgetsBinding.instance.addPostFrameCallback((_) => safeSetState(() {
           _model.phonenumberTextFieldTextController?.text = '+221';
         }));
@@ -239,73 +254,95 @@ class _TransactionInitPageWidgetState extends State<TransactionInitPageWidget> {
                                     _model.phonenumberTextFieldMask
                                   ],
                                 ),
-                              TextFormField(
-                                controller:
-                                    _model.amountTextFieldTextController,
-                                focusNode: _model.amountTextFieldFocusNode,
-                                autofocus: false,
-                                obscureText: false,
-                                decoration: InputDecoration(
-                                  labelText: 'Montant',
-                                  labelStyle: FlutterFlowTheme.of(context)
-                                      .bodyMedium
-                                      .override(
-                                        fontFamily: 'Inter',
-                                        letterSpacing: 0.0,
+                              Column(
+                                mainAxisSize: MainAxisSize.min,
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  TextFormField(
+                                    controller:
+                                        _model.amountTextFieldTextController,
+                                    focusNode: _model.amountTextFieldFocusNode,
+                                    autofocus: false,
+                                    obscureText: false,
+                                    decoration: InputDecoration(
+                                      labelText: 'Montant',
+                                      labelStyle: FlutterFlowTheme.of(context)
+                                          .bodyMedium
+                                          .override(
+                                            fontFamily: 'Inter',
+                                            letterSpacing: 0.0,
+                                          ),
+                                      hintStyle: FlutterFlowTheme.of(context)
+                                          .bodyMedium
+                                          .override(
+                                            fontFamily: 'Inter',
+                                            letterSpacing: 0.0,
+                                          ),
+                                      enabledBorder: OutlineInputBorder(
+                                        borderSide: BorderSide(
+                                          color: FlutterFlowTheme.of(context)
+                                              .alternate,
+                                          width: 1.0,
+                                        ),
+                                        borderRadius: BorderRadius.circular(12.0),
                                       ),
-                                  hintStyle: FlutterFlowTheme.of(context)
-                                      .bodyMedium
-                                      .override(
-                                        fontFamily: 'Inter',
-                                        letterSpacing: 0.0,
+                                      focusedBorder: OutlineInputBorder(
+                                        borderSide: BorderSide(
+                                          color: Color(0x00000000),
+                                          width: 1.0,
+                                        ),
+                                        borderRadius: BorderRadius.circular(12.0),
                                       ),
-                                  enabledBorder: OutlineInputBorder(
-                                    borderSide: BorderSide(
-                                      color: FlutterFlowTheme.of(context)
-                                          .alternate,
-                                      width: 1.0,
+                                      errorBorder: OutlineInputBorder(
+                                        borderSide: BorderSide(
+                                          color: Color(0x00000000),
+                                          width: 1.0,
+                                        ),
+                                        borderRadius: BorderRadius.circular(12.0),
+                                      ),
+                                      focusedErrorBorder: OutlineInputBorder(
+                                        borderSide: BorderSide(
+                                          color: Color(0x00000000),
+                                          width: 1.0,
+                                        ),
+                                        borderRadius: BorderRadius.circular(12.0),
+                                      ),
+                                      filled: true,
+                                      fillColor: FlutterFlowTheme.of(context)
+                                          .secondaryBackground,
+                                      suffixIcon: Icon(
+                                        Icons.payments,
+                                      ),
                                     ),
-                                    borderRadius: BorderRadius.circular(12.0),
+                                    style: FlutterFlowTheme.of(context)
+                                        .bodyLarge
+                                        .override(
+                                          fontFamily: 'Inter',
+                                          letterSpacing: 0.0,
+                                        ),
+                                    minLines: 1,
+                                    keyboardType: TextInputType.number,
+                                    validator: _model
+                                        .amountTextFieldTextControllerValidator
+                                        .asValidator(context),
                                   ),
-                                  focusedBorder: OutlineInputBorder(
-                                    borderSide: BorderSide(
-                                      color: Color(0x00000000),
-                                      width: 1.0,
+                                  if (_model.hasStartedTyping && !_model.isAmountValid)
+                                    Padding(
+                                      padding: EdgeInsetsDirectional.fromSTEB(
+                                          12.0, 8.0, 0.0, 0.0),
+                                      child: Text(
+                                        'Le montant doit être au moins 100 FCFA',
+                                        style: FlutterFlowTheme.of(context)
+                                            .bodySmall
+                                            .override(
+                                              fontFamily: 'Inter',
+                                              color: FlutterFlowTheme.of(context).error,
+                                              fontSize: 12.0,
+                                              letterSpacing: 0.0,
+                                            ),
+                                      ),
                                     ),
-                                    borderRadius: BorderRadius.circular(12.0),
-                                  ),
-                                  errorBorder: OutlineInputBorder(
-                                    borderSide: BorderSide(
-                                      color: Color(0x00000000),
-                                      width: 1.0,
-                                    ),
-                                    borderRadius: BorderRadius.circular(12.0),
-                                  ),
-                                  focusedErrorBorder: OutlineInputBorder(
-                                    borderSide: BorderSide(
-                                      color: Color(0x00000000),
-                                      width: 1.0,
-                                    ),
-                                    borderRadius: BorderRadius.circular(12.0),
-                                  ),
-                                  filled: true,
-                                  fillColor: FlutterFlowTheme.of(context)
-                                      .secondaryBackground,
-                                  suffixIcon: Icon(
-                                    Icons.payments,
-                                  ),
-                                ),
-                                style: FlutterFlowTheme.of(context)
-                                    .bodyLarge
-                                    .override(
-                                      fontFamily: 'Inter',
-                                      letterSpacing: 0.0,
-                                    ),
-                                minLines: 1,
-                                keyboardType: TextInputType.number,
-                                validator: _model
-                                    .amountTextFieldTextControllerValidator
-                                    .asValidator(context),
+                                ],
                               ),
                             ].divide(SizedBox(height: 20.0)),
                           ),
@@ -315,7 +352,7 @@ class _TransactionInitPageWidgetState extends State<TransactionInitPageWidget> {
                   ),
                   Builder(
                     builder: (context) => FFButtonWidget(
-                      onPressed: () async {
+                      onPressed: !_model.isAmountValid ? null : () async {
                         if (widget.transactionType ==
                                 TransactionType.deposit ||
                             widget.transactionType ==
@@ -526,7 +563,9 @@ class _TransactionInitPageWidgetState extends State<TransactionInitPageWidget> {
                         padding: EdgeInsets.all(8.0),
                         iconPadding:
                             EdgeInsetsDirectional.fromSTEB(0.0, 0.0, 0.0, 0.0),
-                        color: FlutterFlowTheme.of(context).primary,
+                        color: _model.isAmountValid
+                            ? FlutterFlowTheme.of(context).primary
+                            : Colors.grey,
                         textStyle:
                             FlutterFlowTheme.of(context).titleLarge.override(
                                   fontFamily: 'Inter Tight',
