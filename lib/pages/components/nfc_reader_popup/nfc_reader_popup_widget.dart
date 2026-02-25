@@ -50,19 +50,24 @@ class _NfcReaderPopupWidgetState extends State<NfcReaderPopupWidget> {
           // For Read mode: start timer immediately and wait for scan
           await Future.wait([
             Future(() async {
-              _model.readNfcResult = await actions.readNfc(
-                context,
-              );
-              // NFC scanned successfully, now processing transaction on server
-              _model.isProcessing = true;
-              safeSetState(() {});
-              
-              await action_blocks.executeManagerTransaction(
-                context,
-                transactionType: widget.transactionType,
-                amount: widget.amount,
-                nfcCardIdentifier: _model.readNfcResult,
-              );
+              try {
+                _model.readNfcResult = await actions.readNfc(
+                  context,
+                );
+                // NFC scanned successfully, now processing transaction on server
+                _model.isProcessing = true;
+                safeSetState(() {});
+                
+                await action_blocks.executeManagerTransaction(
+                  context,
+                  transactionType: widget.transactionType,
+                  amount: widget.amount,
+                  nfcCardIdentifier: _model.readNfcResult,
+                );
+              } catch (e) {
+                print('NFC Reader Widget: Error reading NFC: $e');
+                // Error will be shown by timer expiring
+              }
             }),
             Future(() async {
               _model.instantTimer = InstantTimer.periodic(
@@ -164,6 +169,7 @@ class _NfcReaderPopupWidgetState extends State<NfcReaderPopupWidget> {
             );
           },
         );
+        await actions.stopNfcEmulation();
         if (mounted) {
           Navigator.pop(context);
         }
@@ -175,7 +181,11 @@ class _NfcReaderPopupWidgetState extends State<NfcReaderPopupWidget> {
   void dispose() {
     // On component dispose action.
     () async {
-      await actions.stopNfcEmulation();
+      if (widget.nfcState == NFCState.Read) {
+        await actions.stopNfcReading();
+      } else {
+        await actions.stopNfcEmulation();
+      }
     }();
 
     _model.maybeDispose();

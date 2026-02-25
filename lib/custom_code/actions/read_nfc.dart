@@ -297,6 +297,12 @@ Future<String> readNfc(BuildContext context) async {
 
   await NfcManager.instance.startSession(
     onDiscovered: (NfcTag tag) async {
+      // Skip if already completed (successful read)
+      if (completer.isCompleted) {
+        print('NFC Reader: Ignoring tag, already completed');
+        return;
+      }
+
       print('NFC Reader: Tag discovered!');
       print('NFC Reader: Available technologies: ${tag.data.keys.toList()}');
 
@@ -329,15 +335,17 @@ Future<String> readNfc(BuildContext context) async {
         return;
       }
 
-      // Nothing worked
-      print('NFC Reader: All methods failed. Tag data: ${tag.data}');
-      completer.completeError('No NFC content found');
-      await NfcManager.instance.stopSession();
+      // Nothing worked - but DON'T stop the session or complete with error
+      // This allows multiple scan attempts if the HCE device wasn't ready yet
+      print('NFC Reader: Read failed for this attempt. Keeping session active for retry...');
+      // Session stays open for the next tag presentation
     },
     onError: (error) async {
       print('NFC Reader: Session error: $error');
-      await NfcManager.instance.stopSession();
-      completer.completeError(error);
+      if (!completer.isCompleted) {
+        await NfcManager.instance.stopSession();
+        completer.completeError(error);
+      }
     },
   );
 
