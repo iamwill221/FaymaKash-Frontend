@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 
 import '/flutter_flow/flutter_flow_util.dart';
+import '/backend/app_config.dart';
 import 'api_manager.dart';
 
 export 'api_manager.dart' show ApiCallResponse;
@@ -12,8 +13,7 @@ const _kPrivateApiFunctionName = 'ffPrivateApiCall';
 /// Start Auth Group Code
 
 class AuthGroup {
-  static String getBaseUrl() =>
-      'https://faymakash.daarasmart.com/api/';
+  static String getBaseUrl() => AppConfig.apiBaseUrl;
   static Map<String, String> headers = {};
   static SendOTPCall sendOTPCall = SendOTPCall();
   static VerifyOTPCall verifyOTPCall = VerifyOTPCall();
@@ -227,7 +227,7 @@ class TransactionsGroup {
   static String getBaseUrl({
     String? authToken = '',
   }) =>
-      'https://faymakash.daarasmart.com/api/';
+      AppConfig.apiBaseUrl;
   static Map<String, String> headers = {
     'Authorization': 'Bearer [auth_token]',
   };
@@ -471,8 +471,7 @@ class WithdrawByMobileMoneyCall {
 /// Start NfcCard Group Code
 
 class NfcCardGroup {
-  static String getBaseUrl() =>
-      'https://faymakash.daarasmart.com/api/';
+  static String getBaseUrl() => AppConfig.apiBaseUrl;
   static Map<String, String> headers = {};
   static ChangeNFCCardStateCall changeNFCCardStateCall =
       ChangeNFCCardStateCall();

@@ -320,7 +320,7 @@ class _NfcReaderPopupWidgetState extends State<NfcReaderPopupWidget> {
                           _model.isProcessing
                               ? (widget.nfcState == NFCState.Read 
                                   ? 'Traitement en cours...'
-                                  : 'Récupération du code...')
+                                  : 'Sécurisation...')
                               : (widget.nfcState == NFCState.Read
                                   ? 'En attente du scan... (${_model.timer.toString()}s)'
                                   : 'Prêt à scanner... (${_model.timer.toString()}s)'),

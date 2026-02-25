@@ -14,6 +14,7 @@ import 'package:mime_type/mime_type.dart';
 import '/flutter_flow/uploaded_file.dart';
 
 import 'get_streamed_response.dart';
+import 'secure_http_client.dart';
 
 enum ApiCallType {
   GET,
@@ -158,13 +159,19 @@ class ApiCallResponse {
 }
 
 class ApiManager {
-  ApiManager._();
+  ApiManager._() {
+    // Initialize the secure HTTP client for certificate pinning
+    _secureClient = SecureHttpClient.instance;
+  }
 
   // Cache that will ensure identical calls are not repeatedly made.
   static Map<ApiCallOptions, ApiCallResponse> _apiCache = {};
 
   static ApiManager? _instance;
   static ApiManager get instance => _instance ??= ApiManager._();
+
+  // Secure HTTP client with certificate pinning
+  late final SecureHttpClient _secureClient;
 
   // If your API calls need authentication, populate this field once
   // the user has authenticated. Alter this as needed.
@@ -194,6 +201,8 @@ class ApiManager {
     bool isStreamingApi, {
     http.Client? client,
   }) async {
+    // Use secure client for pinned domains
+    client ??= ApiManager.instance._secureClient.getClient(apiUrl);
     if (params.isNotEmpty) {
       final specifier =
           Uri.parse(apiUrl).queryParameters.isNotEmpty ? '&' : '?';
@@ -234,6 +243,8 @@ class ApiManager {
     bool isStreamingApi, {
     http.Client? client,
   }) async {
+    // Use secure client for pinned domains
+    client ??= ApiManager.instance._secureClient.getClient(apiUrl);
     assert(
       {ApiCallType.POST, ApiCallType.PUT, ApiCallType.PATCH}.contains(type) ||
           (alwaysAllowBody && type == ApiCallType.DELETE),
