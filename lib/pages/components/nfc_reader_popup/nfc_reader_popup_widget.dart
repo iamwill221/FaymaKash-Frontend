@@ -46,25 +46,58 @@ class _NfcReaderPopupWidgetState extends State<NfcReaderPopupWidget> {
     SchedulerBinding.instance.addPostFrameCallback((_) async {
       _model.nfcCheckResult = await actions.checkNfc();
       if (_model.nfcCheckResult!) {
-        await Future.wait([
-          Future(() async {
-            if (widget.nfcState == NFCState.Read) {
+        if (widget.nfcState == NFCState.Read) {
+          // For Read mode: start timer immediately and wait for scan
+          await Future.wait([
+            Future(() async {
               _model.readNfcResult = await actions.readNfc(
                 context,
               );
+              // NFC scanned successfully, now processing transaction on server
+              _model.isProcessing = true;
+              safeSetState(() {});
+              
               await action_blocks.executeManagerTransaction(
                 context,
                 transactionType: widget.transactionType,
                 amount: widget.amount,
                 nfcCardIdentifier: _model.readNfcResult,
               );
-            } else {
-              _model.updateVirtualCardResult =
-                  await NfcCardGroup.updateVirtualCardIdentifierCall.call(
-                authToken: currentAuthenticationToken,
+            }),
+            Future(() async {
+              _model.instantTimer = InstantTimer.periodic(
+                duration: Duration(milliseconds: 1000),
+                callback: (timer) async {
+                  _model.timer = _model.timer + -1;
+                  safeSetState(() {});
+                  if (_model.timer <= 0) {
+                    _model.instantTimer?.cancel();
+                    if (mounted) {
+                      Navigator.pop(context);
+                    }
+                  }
+                },
+                startImmediately: true,
               );
+            }),
+          ]);
+        } else {
+          // For Emulate mode: show spinner while getting code from server
+          _model.isProcessing = true;
+          safeSetState(() {});
+          
+          _model.updateVirtualCardResult =
+              await NfcCardGroup.updateVirtualCardIdentifierCall.call(
+            authToken: currentAuthenticationToken,
+          );
 
-              if ((_model.updateVirtualCardResult?.succeeded ?? true)) {
+          if ((_model.updateVirtualCardResult?.succeeded ?? true)) {
+            // Server responded, now ready for PDA scan - show NFC animation and start timer
+            _model.isProcessing = false;
+            safeSetState(() {});
+            
+            await Future.wait([
+              Future(() async {
                 await actions.startNfcEmulation(
                   context,
                   NfcCardGroup.updateVirtualCardIdentifierCall
@@ -77,43 +110,43 @@ class _NfcReaderPopupWidgetState extends State<NfcReaderPopupWidget> {
                   _model.instantTimer?.cancel();
                   Navigator.pop(context);
                 }
-              } else {
-                await showDialog(
-                  context: context,
-                  builder: (alertDialogContext) {
-                    return AlertDialog(
-                      title: Text('Erreur!'),
-                      content: Text(
-                          'La carte n\'est sûrement pas valide. Veuillez réessayer !'),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(alertDialogContext),
-                          child: Text('Ok'),
-                        ),
-                      ],
-                    );
+              }),
+              Future(() async {
+                _model.instantTimer = InstantTimer.periodic(
+                  duration: Duration(milliseconds: 1000),
+                  callback: (timer) async {
+                    _model.timer = _model.timer + -1;
+                    safeSetState(() {});
+                    if (_model.timer <= 0) {
+                      _model.instantTimer?.cancel();
+                      if (mounted) {
+                        Navigator.pop(context);
+                      }
+                    }
                   },
+                  startImmediately: true,
                 );
-              }
-            }
-          }),
-          Future(() async {
-            _model.instantTimer = InstantTimer.periodic(
-              duration: Duration(milliseconds: 1000),
-              callback: (timer) async {
-                _model.timer = _model.timer + -1;
-                safeSetState(() {});
-                if (_model.timer <= 0) {
-                  _model.instantTimer?.cancel();
-                  if (mounted) {
-                    Navigator.pop(context);
-                  }
-                }
+              }),
+            ]);
+          } else {
+            await showDialog(
+              context: context,
+              builder: (alertDialogContext) {
+                return AlertDialog(
+                  title: Text('Erreur!'),
+                  content: Text(
+                      'La carte n\'est sûrement pas valide. Veuillez réessayer !'),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(alertDialogContext),
+                      child: Text('Ok'),
+                    ),
+                  ],
+                );
               },
-              startImmediately: true,
             );
-          }),
-        ]);
+          }
+        }
       } else {
         await showDialog(
           context: context,
@@ -191,7 +224,9 @@ class _NfcReaderPopupWidgetState extends State<NfcReaderPopupWidget> {
                                 ),
                           ),
                           Text(
-                            'Rapprochez votre téléphone du terminal',
+                            _model.isProcessing
+                                ? 'Veuillez patienter...'
+                                : 'Rapprochez votre téléphone du terminal',
                             style: FlutterFlowTheme.of(context)
                                 .bodyMedium
                                 .override(
@@ -254,19 +289,31 @@ class _NfcReaderPopupWidgetState extends State<NfcReaderPopupWidget> {
                           ),
                           child: Padding(
                             padding: EdgeInsets.all(5.0),
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(8.0),
-                              child: Image.asset(
-                                'assets/images/NfcRead.gif',
-                                width: 250.0,
-                                height: 250.0,
-                                fit: BoxFit.cover,
-                              ),
-                            ),
+                            child: _model.isProcessing
+                                ? CircularProgressIndicator(
+                                    valueColor: AlwaysStoppedAnimation<Color>(
+                                      FlutterFlowTheme.of(context).primary,
+                                    ),
+                                  )
+                                : ClipRRect(
+                                    borderRadius: BorderRadius.circular(8.0),
+                                    child: Image.asset(
+                                      'assets/images/NfcRead.gif',
+                                      width: 250.0,
+                                      height: 250.0,
+                                      fit: BoxFit.cover,
+                                    ),
+                                  ),
                           ),
                         ),
                         Text(
-                          'Scan en cours... (${_model.timer.toString()}s)',
+                          _model.isProcessing
+                              ? (widget.nfcState == NFCState.Read 
+                                  ? 'Traitement en cours...'
+                                  : 'Récupération du code...')
+                              : (widget.nfcState == NFCState.Read
+                                  ? 'En attente du scan... (${_model.timer.toString()}s)'
+                                  : 'Prêt à scanner... (${_model.timer.toString()}s)'),
                           style: FlutterFlowTheme.of(context)
                               .titleMedium
                               .override(

@@ -9,6 +9,8 @@ class NfcReaderPopupModel extends FlutterFlowModel<NfcReaderPopupWidget> {
 
   int timer = 10;
 
+  bool isProcessing = false;
+
   ///  State fields for stateful widgets in this component.
 
   // Stores action output result for [Custom Action - checkNfc] action in NfcReaderPopup widget.
