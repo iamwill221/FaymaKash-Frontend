@@ -13,7 +13,8 @@ const _kAuthTokenKey = '_auth_authentication_token_';
 const _kRefreshTokenKey = '_auth_refresh_token_';
 const _kTokenExpirationKey = '_auth_token_expiration_';
 const _kUidKey = '_auth_uid_';
-const _kUserDataKey = '_auth_user_data_'const _kNfcKeyKey = '_nfc_system_master_key_';
+const _kUserDataKey = '_auth_user_data_';
+const _kNfcKeyKey = '_nfc_system_master_key_';
 
 class CustomAuthManager {
   // Auth session attributes
