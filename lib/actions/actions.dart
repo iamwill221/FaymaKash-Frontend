@@ -6,6 +6,25 @@ import '/flutter_flow/flutter_flow_util.dart';
 import '/index.dart';
 import 'package:flutter/material.dart';
 
+String _extractApiError(dynamic jsonBody) {
+  if (jsonBody == null) return 'Une erreur est survenue. Veuillez réessayer.';
+  // {"detail": "msg"} or {"detail": ["msg"]}
+  final detail = getJsonField(jsonBody, r'''$.detail''');
+  if (detail != null) {
+    if (detail is List && detail.isNotEmpty) return detail.first.toString();
+    return detail.toString();
+  }
+  // ["msg"] — DRF ValidationError
+  if (jsonBody is List && jsonBody.isNotEmpty) return jsonBody.first.toString();
+  // {"non_field_errors": ["msg"]}
+  final nfe = getJsonField(jsonBody, r'''$.non_field_errors''');
+  if (nfe != null) {
+    if (nfe is List && nfe.isNotEmpty) return nfe.first.toString();
+    return nfe.toString();
+  }
+  return 'Une erreur est survenue. Veuillez réessayer.';
+}
+
 Future executeManagerTransaction(
   BuildContext context, {
   required TransactionType? transactionType,
@@ -25,7 +44,7 @@ Future executeManagerTransaction(
 
     if ((depositResult.succeeded ?? true)) {
       Navigator.pop(context);
-      context.pushNamed(HomeWidget.routeName);
+      context.goNamed(HomeWidget.routeName);
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -43,10 +62,7 @@ Future executeManagerTransaction(
         builder: (alertDialogContext) {
           return AlertDialog(
             title: Text('Erreur!'),
-            content: Text(getJsonField(
-              (depositResult?.jsonBody ?? ''),
-              r'''$.detail''',
-            ).toString().toString()),
+            content: Text(_extractApiError(depositResult?.jsonBody)),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(alertDialogContext),
@@ -66,7 +82,7 @@ Future executeManagerTransaction(
 
     if ((withdrawResult.succeeded ?? true)) {
       Navigator.pop(context);
-      context.pushNamed(HomeWidget.routeName);
+      context.goNamed(HomeWidget.routeName);
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -84,8 +100,7 @@ Future executeManagerTransaction(
         builder: (alertDialogContext) {
           return AlertDialog(
             title: Text('Erreur!'),
-            content: Text(
-                'La carte n\'est probablement pas valide. Veuillez réessayer plus tard.'),
+            content: Text(_extractApiError(withdrawResult?.jsonBody)),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(alertDialogContext),
@@ -105,7 +120,7 @@ Future executeManagerTransaction(
 
     if ((paymentResult.succeeded ?? true)) {
       Navigator.pop(context);
-      context.pushNamed(HomeWidget.routeName);
+      context.goNamed(HomeWidget.routeName);
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -123,8 +138,7 @@ Future executeManagerTransaction(
         builder: (alertDialogContext) {
           return AlertDialog(
             title: Text('Erreur!'),
-            content: Text(
-                'La carte n\'est probablement pas valide. Veuillez réessayer plus tard.'),
+            content: Text(_extractApiError(paymentResult?.jsonBody)),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(alertDialogContext),

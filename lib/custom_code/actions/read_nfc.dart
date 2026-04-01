@@ -11,10 +11,234 @@ import 'package:flutter/material.dart';
 
 import 'dart:async';
 import 'dart:convert'; // For utf8.decode
+import 'dart:math';
 import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:nfc_manager/nfc_manager.dart';
 import 'package:nfc_manager/platform_tags.dart';
+import 'package:pointycastle/export.dart' hide Padding;
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+
+// DESFire NDEF application AID (must match Java provisioner)
+final Uint8List _NDEF_APP_AID = Uint8List.fromList([0x01, 0x00, 0x00]);
+
+// Must match the key used in CustomAuthManager
+const _kNfcKeyKey = '_nfc_system_master_key_';
+
+// ---------------------------------------------------------------------------
+// AES-128 crypto utilities (mirrors Java DESFireCrypto)
+// ---------------------------------------------------------------------------
+
+Uint8List _aesEncryptCbc(Uint8List key, Uint8List iv, Uint8List data) {
+  final cipher = CBCBlockCipher(AESEngine())
+    ..init(true, ParametersWithIV(KeyParameter(key), iv));
+  final out = Uint8List(data.length);
+  for (var i = 0; i < data.length; i += 16) {
+    cipher.processBlock(data, i, out, i);
+  }
+  return out;
+}
+
+Uint8List _aesDecryptCbc(Uint8List key, Uint8List iv, Uint8List data) {
+  final cipher = CBCBlockCipher(AESEngine())
+    ..init(false, ParametersWithIV(KeyParameter(key), iv));
+  final out = Uint8List(data.length);
+  for (var i = 0; i < data.length; i += 16) {
+    cipher.processBlock(data, i, out, i);
+  }
+  return out;
+}
+
+Uint8List _aesEncryptEcb(Uint8List key, Uint8List block) {
+  final cipher = AESEngine()..init(true, KeyParameter(key));
+  final out = Uint8List(16);
+  cipher.processBlock(block, 0, out, 0);
+  return out;
+}
+
+Uint8List _cmacSubkey(Uint8List input) {
+  final result = Uint8List(16);
+  int carry = 0;
+  for (var i = 15; i >= 0; i--) {
+    final val = (input[i] << 1) | carry;
+    result[i] = val & 0xFF;
+    carry = (input[i] & 0x80) != 0 ? 1 : 0;
+  }
+  if ((input[0] & 0x80) != 0) result[15] ^= 0x87;
+  return result;
+}
+
+/// AES-128 CMAC (RFC 4493) — matches Java and Django implementations.
+Uint8List _aesCmac(Uint8List key, Uint8List message) {
+  final L = _aesEncryptEcb(key, Uint8List(16));
+  final k1 = _cmacSubkey(L);
+  final k2 = _cmacSubkey(k1);
+
+  var n = (message.length + 15) ~/ 16;
+  if (n == 0) n = 1;
+
+  final complete = message.isNotEmpty && (message.length % 16 == 0);
+  final input = Uint8List(n * 16);
+  input.setRange(0, message.length, message);
+  if (!complete) input[message.length] = 0x80;
+
+  final subkey = complete ? k1 : k2;
+  final lastBlock = (n - 1) * 16;
+  for (var i = 0; i < 16; i++) {
+    input[lastBlock + i] ^= subkey[i];
+  }
+
+  final enc = _aesEncryptCbc(key, Uint8List(16), input);
+  return Uint8List.fromList(enc.sublist(enc.length - 16));
+}
+
+/// NXP truncated CMAC: every other byte starting at index 1 → 8 bytes.
+Uint8List _truncateCmac(Uint8List fullMac) =>
+    Uint8List.fromList([for (var i = 0; i < 8; i++) fullMac[1 + i * 2]]);
+
+/// Derive per-card key using AES-CMAC (NXP AN10922).
+Uint8List _diversifyKey(
+    Uint8List masterKey, Uint8List uid, Uint8List aid, int keyNo) {
+  final div = Uint8List(32);
+  var p = 0;
+  div[p++] = 0x01;
+  div.setRange(p, p + uid.length, uid);
+  p += uid.length;
+  div.setRange(p, p + aid.length, aid);
+  p += aid.length;
+  div[p++] = keyNo;
+  div[p] = 0x80; // ISO padding
+  return _aesCmac(masterKey, div);
+}
+
+// ---------------------------------------------------------------------------
+// Hex helpers
+// ---------------------------------------------------------------------------
+
+String _toHex(Uint8List bytes) =>
+    bytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join('').toUpperCase();
+
+Uint8List _hexDecode(String hex) {
+  final clean = hex.replaceAll(' ', '');
+  return Uint8List.fromList([
+    for (var i = 0; i < clean.length; i += 2)
+      int.parse(clean.substring(i, i + 2), radix: 16)
+  ]);
+}
+
+Uint8List _generateRandom(int length) {
+  final rng = Random.secure();
+  return Uint8List.fromList(List.generate(length, (_) => rng.nextInt(256)));
+}
+
+// ---------------------------------------------------------------------------
+// DESFire EV2 mutual authentication via IsoDep
+// ---------------------------------------------------------------------------
+
+/// Check if DESFire response ends with 91 00 (OK).
+bool _isDESFireOk(Uint8List resp) =>
+    resp.length >= 2 &&
+    resp[resp.length - 2] == 0x91 &&
+    resp[resp.length - 1] == 0x00;
+
+/// Attempt DESFire EV2 AuthenticateEV2First with Key1.
+/// If auth succeeds, the card is genuine. Returns "FK:<uid>.<cmac>" token.
+Future<String> _tryDESFireAuth(NfcTag tag) async {
+  try {
+    // Load system master key from secure storage (stored at login)
+    const storage = FlutterSecureStorage(
+      aOptions: AndroidOptions(encryptedSharedPreferences: true),
+    );
+    final keyHex = await storage.read(key: _kNfcKeyKey);
+    if (keyHex == null || keyHex.length != 32) {
+      if (kDebugMode) print('DESFire Auth: No system master key in secure storage');
+      return '';
+    }
+    final systemMasterKey = _hexDecode(keyHex);
+
+    final isoDep = IsoDep.from(tag);
+    if (isoDep == null) return '';
+
+    // Get UID from NFC-A layer
+    final nfcaData = tag.data['nfca'] as Map?;
+    if (nfcaData == null) return '';
+    final uidList = nfcaData['identifier'] as List?;
+    if (uidList == null || uidList.length != 7) return '';
+    final uid = Uint8List.fromList(uidList.cast<int>());
+    final uidHex = _toHex(uid);
+
+    if (kDebugMode) print('DESFire Auth: UID = $uidHex');
+
+    // Derive Key1 (read key) from system master key
+    final key1 = _diversifyKey(systemMasterKey, uid, _NDEF_APP_AID, 0x01);
+
+    // Step 1: SELECT_APPLICATION (AID 01 00 00)
+    var resp = await isoDep.transceive(
+        data: Uint8List.fromList(
+            [0x90, 0x5A, 0x00, 0x00, 0x03, 0x01, 0x00, 0x00, 0x00]));
+    if (!_isDESFireOk(resp)) {
+      if (kDebugMode) print('DESFire Auth: SELECT_APP failed: ${_toHex(resp)}');
+      return '';
+    }
+
+    // Step 2: AuthenticateEV2First (key 01, no caps)
+    resp = await isoDep.transceive(
+        data: Uint8List.fromList(
+            [0x90, 0x71, 0x00, 0x00, 0x02, 0x01, 0x00, 0x00]));
+    if (resp.length < 18 ||
+        resp[resp.length - 2] != 0x91 ||
+        resp[resp.length - 1] != 0xAF) {
+      if (kDebugMode) print('DESFire Auth: Phase 1 failed: ${_toHex(resp)}');
+      return '';
+    }
+
+    final rndBEnc = Uint8List.fromList(resp.sublist(0, resp.length - 2));
+    if (kDebugMode) print('DESFire Auth: RndB_enc (${rndBEnc.length}B)');
+
+    // Decrypt RndB with Key1, IV=0
+    final rndB = _aesDecryptCbc(key1, Uint8List(16), rndBEnc);
+    final rndA = _generateRandom(16);
+
+    // Rotate RndB left 1 byte
+    final rndBRot = Uint8List.fromList([...rndB.sublist(1), rndB[0]]);
+
+    // Concatenate RndA || RndB' and encrypt with IV=0
+    final plaintext = Uint8List(32);
+    plaintext.setRange(0, 16, rndA);
+    plaintext.setRange(16, 32, rndBRot);
+    final phase2Data = _aesEncryptCbc(key1, Uint8List(16), plaintext);
+
+    // Step 3: Send phase 2 (Additional Frame)
+    final cmd2 = Uint8List(5 + phase2Data.length + 1);
+    cmd2[0] = 0x90; // CLA
+    cmd2[1] = 0xAF; // INS_ADDITIONAL_FRAME
+    cmd2[2] = 0x00;
+    cmd2[3] = 0x00;
+    cmd2[4] = phase2Data.length; // Lc
+    cmd2.setRange(5, 5 + phase2Data.length, phase2Data);
+    cmd2[cmd2.length - 1] = 0x00; // Le
+
+    resp = await isoDep.transceive(data: cmd2);
+    if (!_isDESFireOk(resp)) {
+      if (kDebugMode) print('DESFire Auth: Phase 2 failed: ${_toHex(resp)}');
+      return '';
+    }
+
+    if (kDebugMode) print('DESFire Auth: SUCCESS — card is genuine');
+
+    // Auth passed → card provably knows Key1.
+    // Compute FK CMAC token (same as what the Java provisioner wrote to NDEF).
+    final fullMac = _aesCmac(key1, uid);
+    final truncMac = _truncateCmac(fullMac);
+    final token = 'FK:$uidHex.${_toHex(truncMac)}';
+
+    if (kDebugMode) print('DESFire Auth: Token = $token');
+    return token;
+  } catch (e) {
+    if (kDebugMode) print('DESFire Auth: Error: $e');
+    return '';
+  }
+}
 
 // Helper function to parse an NDEF text record
 String parseNdefTextRecord(dynamic record) {
@@ -325,7 +549,17 @@ Future<String> readNfc(BuildContext context) async {
         return;
       }
 
-      // Method 3: Try IsoDep APDU commands (fallback for HCE phones)
+      // Method 3: Try DESFire EV2 auth (physical card with key-protected NDEF)
+      print('NFC Reader: Trying DESFire EV2 authentication...');
+      content = await _tryDESFireAuth(tag);
+      if (content.isNotEmpty) {
+        print('NFC Reader: Got content from DESFire auth: $content');
+        completer.complete(content);
+        await NfcManager.instance.stopSession();
+        return;
+      }
+
+      // Method 4: Try IsoDep APDU commands (fallback for HCE phones)
       print('NFC Reader: No NDEF data, trying IsoDep APDU...');
       content = await _tryIsoDepRead(tag);
       if (content.isNotEmpty) {

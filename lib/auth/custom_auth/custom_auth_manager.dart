@@ -13,7 +13,7 @@ const _kAuthTokenKey = '_auth_authentication_token_';
 const _kRefreshTokenKey = '_auth_refresh_token_';
 const _kTokenExpirationKey = '_auth_token_expiration_';
 const _kUidKey = '_auth_uid_';
-const _kUserDataKey = '_auth_user_data_';
+const _kUserDataKey = '_auth_user_data_'const _kNfcKeyKey = '_nfc_system_master_key_';
 
 class CustomAuthManager {
   // Auth session attributes
@@ -30,6 +30,8 @@ class CustomAuthManager {
     tokenExpiration = null;
     uid = null;
     userData = null;
+    // Clear NFC key on logout
+    await _secureStorage.delete(key: _kNfcKeyKey);
     // Update the current user.
     faymaKashAuthUserSubject.add(
       FaymaKashAuthUser(loggedIn: false),
@@ -135,6 +137,18 @@ class CustomAuthManager {
       userData: userData,
     );
     faymaKashAuthUserSubject.add(updatedUser);
+  }
+
+  /// Store the NFC system master key received from the backend at login.
+  Future<void> storeNfcKey(String? nfcKeyHex) async {
+    if (nfcKeyHex != null && nfcKeyHex.isNotEmpty) {
+      await _secureStorage.write(key: _kNfcKeyKey, value: nfcKeyHex);
+    }
+  }
+
+  /// Read the NFC system master key from secure storage.
+  Future<String?> readNfcKey() async {
+    return await _secureStorage.read(key: _kNfcKeyKey);
   }
 
   Future<void> persistAuthData() async {

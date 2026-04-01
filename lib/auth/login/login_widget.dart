@@ -166,6 +166,12 @@ class _LoginWidgetState extends State<LoginWidget>
             (_model.loginResult?.jsonBody ?? '')),
       );
 
+      // Store NFC key if the backend sent one (managers only)
+      final jsonBody = _model.loginResult?.jsonBody;
+      if (jsonBody is Map && jsonBody['nfc_key'] != null) {
+        await authManager.storeNfcKey(jsonBody['nfc_key'] as String);
+      }
+
       context.pushNamedAuth(
         HomeWidget.routeName,
         context.mounted,
